@@ -1,46 +1,41 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, func
+
 from app.routers import csv_import, analytics, trade_ops
-from app.database import async_session
-from app.models import ImportedTrade
+from app.routers.analytics import fetch_open_symbols
 from app.services.price_service import refresh_prices
 
-PRICE_INTERVAL = 300
+logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
+logger = logging.getLogger("app")
+
+PRICE_REFRESH_SECONDS = 300
 
 
-async def _refresh_loop():
-    await asyncio.sleep(5)
+async def _price_refresh_loop():
+    await asyncio.sleep(5)  # let the app finish startup / migrations settle
     while True:
         try:
-            async with async_session() as db:
-                q = select(
-                    ImportedTrade.symbol, ImportedTrade.asset_category,
-                ).group_by(
-                    ImportedTrade.symbol, ImportedTrade.asset_category,
-                ).having(func.sum(ImportedTrade.quantity) != 0)
-                result = await db.execute(q)
-                symbols = [(r.symbol, r.asset_category) for r in result.all()]
-
+            symbols = await fetch_open_symbols()
             if symbols:
-                updated = await asyncio.to_thread(refresh_prices, symbols)
-                print(f"[prices] refreshed {len(updated)}/{len(symbols)} symbols")
-        except Exception as e:
-            print(f"[prices] error: {e}")
-
-        await asyncio.sleep(PRICE_INTERVAL)
+                updated = await refresh_prices(symbols)
+                logger.info("prices refreshed: %d/%d symbols", len(updated), len(symbols))
+        except Exception:
+            logger.exception("price refresh failed")
+        await asyncio.sleep(PRICE_REFRESH_SECONDS)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    task = asyncio.create_task(_refresh_loop())
+    task = asyncio.create_task(_price_refresh_loop())
     yield
     task.cancel()
 
 
-app = FastAPI(title="Trader History", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="Trader History", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

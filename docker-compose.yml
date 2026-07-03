@@ -19,7 +19,6 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+asyncpg://trader:${POSTGRES_PASSWORD:-trader_secret}@db:5432/trader_history
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     ports:
       - "8000:8000"
     depends_on:

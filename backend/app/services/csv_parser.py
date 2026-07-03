@@ -7,7 +7,6 @@ def parse_ibkr_csv(content: str) -> dict:
     account_id = ""
     trades: list[dict] = []
     deposits: list[dict] = []
-    total_deposits_usd = 0.0
 
     content = content.lstrip("﻿")
     reader = csv.reader(io.StringIO(content))
@@ -19,13 +18,8 @@ def parse_ibkr_csv(content: str) -> dict:
 
         if len(row) >= 6 and row[0] == "Deposits & Withdrawals" and row[1] == "Data":
             cur = row[2].strip()
-            if cur == "Total in USD":
-                try:
-                    total_deposits_usd = float(row[5].strip())
-                except (ValueError, IndexError):
-                    pass
-                continue
-            if cur in ("Total", ""):
+            # Skip aggregate/total rows; keep only per-currency deposit lines.
+            if cur in ("Total", "Total in USD", ""):
                 continue
             try:
                 deposits.append({
@@ -80,5 +74,4 @@ def parse_ibkr_csv(content: str) -> dict:
         "account_id": account_id,
         "trades": trades,
         "deposits": deposits,
-        "total_deposits_usd": total_deposits_usd,
     }
