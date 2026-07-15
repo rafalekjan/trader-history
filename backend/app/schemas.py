@@ -8,6 +8,14 @@ class ImportResult(BaseModel):
     message: str = ""
 
 
+class ClosePositionIn(BaseModel):
+    symbol: str
+    asset_category: str
+    close_price: float
+    close_date: str
+    quantity: float  # signed net position (+ long, - short)
+
+
 class ImportedTradeOut(BaseModel):
     id: int
     account_id: str
@@ -43,7 +51,7 @@ class MonthlyStats(BaseModel):
     wins: int
     losses: int
     win_rate: float
-    profit_factor: float
+    profit_factor: float | None  # None = no losing trades (infinite)
     daily: list[DailyPnL]
 
 
@@ -74,14 +82,19 @@ class DayTradeEntry(BaseModel):
     symbol: str
     asset_category: str
     quantity: float
+    side: str
     trade_price: float
-    realized_pnl: float
+    entry_price: float | None = None  # avg cost per unit (incl. opening fees) for closing trades
+    commission: float
+    net_amount: float  # proceeds + commission: cash actually received/paid
+    realized_pnl: float | None  # None for opening trades
     status: str
 
 
 class DayDetail(BaseModel):
     date: str
     realized_pnl: float
+    total_commission: float
     wins: int
     losses: int
     trims: int
@@ -98,7 +111,7 @@ class FullStats(BaseModel):
     net_realized_pnl: float
     win_rate: float
     closed_trades: int
-    profit_factor: float
+    profit_factor: float | None  # None = no losing trades (infinite)
     avg_win: float
     avg_loss: float
     best_trade: TradeRef | None

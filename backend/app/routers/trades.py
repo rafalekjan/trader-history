@@ -1,21 +1,45 @@
+"""Trade listing and manual trade operations (close / delete)."""
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, delete, func, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, func
+
+from app.constants import OPTION_CATEGORY, contract_multiplier
 from app.database import get_db
 from app.models import ImportedTrade
-from app.constants import contract_multiplier
+from app.schemas import ClosePositionIn, ImportedTradeOut
 
-router = APIRouter(tags=["trade-ops"])
+router = APIRouter(tags=["trades"])
+
+# Filter values accepted by the trade_type query param -> stored asset_category.
+ASSET_MAP = {"Stock": "Stocks", "Option": OPTION_CATEGORY, "Future": "Futures"}
 
 
-class ClosePositionIn(BaseModel):
-    symbol: str
-    asset_category: str
-    close_price: float
-    close_date: str
-    quantity: float  # signed net position (+ long, - short)
+@router.get("/imported-trades", response_model=list[ImportedTradeOut])
+async def get_imported_trades(
+    limit: int = Query(200, le=2000),
+    offset: int = Query(0, ge=0),
+    search: str | None = None,
+    side: str | None = Query(None, pattern="^(long|short)$"),
+    trade_type: str | None = None,
+    sort_by: str = Query("date", pattern="^(date|pnl)$"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(ImportedTrade)
+    if search:
+        q = q.where(ImportedTrade.symbol.ilike(f"%{search}%"))
+    if side:
+        q = q.where(ImportedTrade.quantity > 0 if side == "long" else ImportedTrade.quantity < 0)
+    if trade_type in ASSET_MAP:
+        q = q.where(ImportedTrade.asset_category == ASSET_MAP[trade_type])
+
+    order_col = ImportedTrade.date_time if sort_by == "date" else ImportedTrade.realized_pnl
+    q = q.order_by(desc(order_col) if sort_dir == "desc" else asc(order_col))
+
+    result = await db.execute(q.limit(limit).offset(offset))
+    return result.scalars().all()
 
 
 @router.post("/trades/close-position")

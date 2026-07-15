@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: always
     environment:
       POSTGRES_USER: trader
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-trader_secret}
@@ -17,6 +18,7 @@ services:
 
   backend:
     build: ./backend
+    restart: always
     environment:
       DATABASE_URL: postgresql+asyncpg://trader:${POSTGRES_PASSWORD:-trader_secret}@db:5432/trader_history
     ports:
@@ -29,6 +31,7 @@ services:
 
   frontend:
     build: ./frontend
+    restart: always
     ports:
       - "80:80"
     depends_on:

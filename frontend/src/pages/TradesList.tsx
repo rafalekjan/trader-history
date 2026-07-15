@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api, type ImportedTrade, type TradeSummary } from "../api/client";
-import { fmtMoney, pnlClass } from "../utils/format";
+import { assetLabel, fmtMoney, pnlClass } from "../utils/format";
 import { useDebounce } from "../hooks/useDebounce";
 import StatsBar from "../components/StatsBar";
 import OpenPositions from "../components/OpenPositions";
@@ -8,6 +8,28 @@ import OpenPositions from "../components/OpenPositions";
 const SIDES = ["All", "Long", "Short"] as const;
 const TYPES = ["All", "Stock", "Option", "Future"] as const;
 const PAGE_SIZE = 100;
+
+function FilterGroup({ label, options, active, onSelect }: {
+  label: string;
+  options: readonly string[];
+  active: string;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <div className="filter-group">
+      <span className="filter-label">{label}</span>
+      {options.map((o) => (
+        <button
+          key={o}
+          className={`btn ${active === o ? "btn-primary" : "btn-secondary"}`}
+          onClick={() => onSelect(o)}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function TradesList() {
   const [trades, setTrades] = useState<ImportedTrade[]>([]);
@@ -82,30 +104,8 @@ export default function TradesList() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="filter-group">
-            <span className="filter-label">Side</span>
-            {SIDES.map((s) => (
-              <button
-                key={s}
-                className={`btn ${sideFilter === s ? "btn-primary" : "btn-secondary"}`}
-                onClick={() => setSideFilter(s)}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <div className="filter-group">
-            <span className="filter-label">Type</span>
-            {TYPES.map((t) => (
-              <button
-                key={t}
-                className={`btn ${typeFilter === t ? "btn-primary" : "btn-secondary"}`}
-                onClick={() => setTypeFilter(t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <FilterGroup label="Side" options={SIDES} active={sideFilter} onSelect={setSideFilter} />
+          <FilterGroup label="Type" options={TYPES} active={typeFilter} onSelect={setTypeFilter} />
         </div>
 
         {loading ? (
@@ -129,7 +129,7 @@ export default function TradesList() {
                     <tr key={t.id}>
                       <td className="nowrap">{new Date(t.date_time).toLocaleString()}</td>
                       <td className="nowrap" style={{ fontWeight: 600 }}>{t.symbol}</td>
-                      <td>{t.asset_category === "Stocks" ? "Stock" : "Option"}</td>
+                      <td>{assetLabel(t.asset_category)}</td>
                       <td className={pnlClass(t.quantity)}>{t.quantity > 0 ? "BUY" : "SELL"}</td>
                       <td>{Math.abs(t.quantity)}</td>
                       <td>{fmtMoney(t.trade_price)}</td>

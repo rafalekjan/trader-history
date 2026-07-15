@@ -1,8 +1,14 @@
 const BASE = "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { headers: { "Content-Type": "application/json" }, ...init });
-  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.detail || res.statusText); }
+  // FormData bodies must not get an explicit Content-Type — the browser sets
+  // the multipart boundary itself.
+  const headers = init?.body instanceof FormData ? undefined : { "Content-Type": "application/json" };
+  const res = await fetch(`${BASE}${path}`, { headers, ...init });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || res.statusText);
+  }
   return res.json();
 }
 
@@ -14,23 +20,22 @@ export interface ImportedTrade {
   realized_pnl: number; mtm_pnl: number; code: string;
 }
 export interface DailyPnL { date: string; pnl: number; trade_count: number; wins: number; losses: number; }
-export interface MonthlyStats { year: number; month: number; total_pnl: number; trade_count: number; wins: number; losses: number; win_rate: number; profit_factor: number; daily: DailyPnL[]; }
+export interface MonthlyStats { year: number; month: number; total_pnl: number; trade_count: number; wins: number; losses: number; win_rate: number; profit_factor: number | null; daily: DailyPnL[]; }
 export interface CumulativePnLPoint { date: string; cumulative_pnl: number; daily_pnl: number; }
 export interface TradeSummary { net_realized_pnl: number; open_trades: number; logged_trades: number; win_rate: number; }
 export interface OpenPosition { symbol: string; asset_category: string; quantity: number; avg_price: number; market_value: number; current_price: number | null; unrealized_pnl: number | null; }
-export interface DayTradeEntry { symbol: string; asset_category: string; quantity: number; trade_price: number; realized_pnl: number; status: string; }
-export interface DayDetail { date: string; realized_pnl: number; wins: number; losses: number; trims: number; trades: DayTradeEntry[]; }
+export interface DayTradeEntry { symbol: string; asset_category: string; quantity: number; side: string; trade_price: number; entry_price: number | null; commission: number; net_amount: number; realized_pnl: number | null; status: string; }
+export interface DayDetail { date: string; realized_pnl: number; total_commission: number; wins: number; losses: number; trims: number; trades: DayTradeEntry[]; }
 export interface TradeRef { symbol: string; pnl: number; date: string; }
-export interface FullStats { net_realized_pnl: number; win_rate: number; closed_trades: number; profit_factor: number; avg_win: number; avg_loss: number; best_trade: TradeRef | null; worst_trade: TradeRef | null; }
+export interface FullStats { net_realized_pnl: number; win_rate: number; closed_trades: number; profit_factor: number | null; avg_win: number; avg_loss: number; best_trade: TradeRef | null; worst_trade: TradeRef | null; }
 export interface DepositEntry { currency: string; settle_date: string; description: string; amount: number; }
 export interface DepositsResponse { deposits: DepositEntry[]; total_native: Record<string, number>; total_usd: number; }
 
 export const api = {
-  uploadCSV: async (file: File): Promise<ImportResult> => {
-    const form = new FormData(); form.append("file", file);
-    const res = await fetch(`${BASE}/csv/upload`, { method: "POST", body: form });
-    if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.detail || res.statusText); }
-    return res.json();
+  uploadCSV: (file: File): Promise<ImportResult> => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<ImportResult>("/csv/upload", { method: "POST", body: form });
   },
   getImportedTrades: (opts: { limit?: number; offset?: number; search?: string; side?: string; tradeType?: string; sortBy?: string; sortDir?: string; } = {}) => {
     const p = new URLSearchParams({ limit: String(opts.limit ?? 200), offset: String(opts.offset ?? 0), sort_by: opts.sortBy ?? "date", sort_dir: opts.sortDir ?? "desc" });

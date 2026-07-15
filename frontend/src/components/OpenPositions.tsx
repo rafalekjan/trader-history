@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
 import { api, type OpenPosition } from "../api/client";
-import { fmtMoney, pnlClass } from "../utils/format";
+import { assetLabel, fmtMoney, pnlClass } from "../utils/format";
 
 const AUTO_REFRESH_MS = 5 * 60_000; // matches the backend price-refresh interval
 
@@ -119,7 +119,7 @@ export default function OpenPositions({ onChanged }: { onChanged?: () => void })
                   onClick={() => toggleEdit(p.symbol)}
                 >
                   <td style={{ fontWeight: 600 }}>{p.symbol}</td>
-                  <td>{p.asset_category === "Stocks" ? "Stock" : "Option"}</td>
+                  <td>{assetLabel(p.asset_category)}</td>
                   <td className={pnlClass(p.quantity)}>{p.quantity}</td>
                   <td>{fmtMoney(p.avg_price)}</td>
                   <td>{fmtMoney(p.market_value)}</td>

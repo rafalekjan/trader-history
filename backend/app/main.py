@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import csv_import, analytics, trade_ops
-from app.routers.analytics import fetch_open_symbols
+from app.routers import analytics, csv_import, positions, trades
+from app.routers.positions import fetch_open_symbols
 from app.services.price_service import refresh_prices
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
@@ -44,9 +44,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(csv_import.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
-app.include_router(trade_ops.router, prefix="/api")
+app.include_router(csv_import.router, prefix="/api")
+app.include_router(positions.router, prefix="/api")
+app.include_router(trades.router, prefix="/api")
 
 
 @app.get("/api/health")

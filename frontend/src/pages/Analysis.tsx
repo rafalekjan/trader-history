@@ -4,7 +4,7 @@ import {
   CartesianGrid, Tooltip, ReferenceLine,
 } from "recharts";
 import { api, type CumulativePnLPoint, type FullStats, type DepositsResponse } from "../api/client";
-import { fmtMoney, pnlClass } from "../utils/format";
+import { fmtMoney, fmtProfitFactor, pnlClass } from "../utils/format";
 import StatsBar from "../components/StatsBar";
 
 const RANGES = ["MTD", "YTD", "1M", "3M", "6M", "1Y", "ALL"] as const;
@@ -69,7 +69,7 @@ export default function Analysis() {
             { label: "Net Realized P&L", value: fmtMoney(stats.net_realized_pnl), className: pnlClass(stats.net_realized_pnl) },
             { label: "Win Rate", value: `${stats.win_rate}%` },
             { label: "Closed Trades", value: stats.closed_trades },
-            { label: "Profit Factor", value: stats.profit_factor },
+            { label: "Profit Factor", value: fmtProfitFactor(stats.profit_factor) },
           ]} />
         </div>
       )}
